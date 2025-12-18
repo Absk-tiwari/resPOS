@@ -110,10 +110,10 @@ function POS() {
             toast.success(data.message);
             // send print to kitchen
             window.electronAPI?.sendToKitchen({
-                table: activeSession,
-                taste: tableOrders[activeSession].taste,
-                note: tableOrders[activeSession].note,
-                products: KartProducts[activeSession],
+                tableName: activeSession,
+                taste: tableOrders[activeSession].taste??'',
+                note: tableOrders[activeSession].note??'',
+                products: (KartProducts[activeSession]??[]).map(p => ({name: p.name, stock: p.stock})),
                 printer: kitchenPrinter
             });
 
@@ -205,13 +205,7 @@ function POS() {
             let rest = {...KartProducts,[activeSession]: KartProducts[activeSession].filter((item, i)=> i!== index) }
             return setCartProducts(rest);
         }
-        if(inventory && sale) {
-            let canAdd = product.quantity - availableStocks[product.id]
-            canAdd = canAdd < 1 ? canAdd : 1;
-            let updatedStock = (product.stock-0) + canAdd;
-            let availableStock = product.quantity - updatedStock;
-            setAvailableStocks({...availableStocks, [product.id]: availableStock });
-        }
+        
         product.stock = product.stock - 1;
         setCartProducts(copy)
         dispatch({ type:"CHOOSEN_PRODUCT", payload: copy })

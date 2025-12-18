@@ -84,7 +84,7 @@ const Transaction = ({ isLoading, orderProducts, taxes, order, total }) => {
                             { order.stock + ' '+ (order.units[order.id]??'') } x
                         </strong>
                         <b style={{fontSize:order.name.length > 35?'medium':'large',fontWeight:900,maxWidth:'80%'}}>
-                            {order.seq+". "+order.name}
+                            {order.name}
                         </b>
                         { order.prices[order.id] < 0 ?
                         (<><small className='toHide' style={labelStyle}>-</small></>): null }

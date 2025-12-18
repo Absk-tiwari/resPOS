@@ -280,7 +280,7 @@ export const commonApiSlice = createApi({
 						}
 						
 						window.electronAPI?.sendToKitchen({ 
-							table: data.table,
+							tableName: data.table,
 							taste: data.order.taste,
 							note: data.order.note,
 							products: data.products,

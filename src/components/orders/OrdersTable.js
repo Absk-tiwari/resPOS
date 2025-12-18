@@ -50,7 +50,7 @@ export default function OrdersTable() {
 
     const toggleReport = () => setReportModal(!reportModal);
 
-    const addToPOS = async (orderID, table, status) => {
+    const addToPOS = async (orderID, table, status, payment_status) => {
         table = table.indexOf(`"`) !== -1 ? JSON.parse(table) : table;
         let products = [];
 
@@ -61,7 +61,7 @@ export default function OrdersTable() {
 
         for (const prID in obj.session) {
             let thisProduct = cachedProducts.find(p => p.id === Number(prID))
-            products = [...products, { ...thisProduct, stock: Number(obj.session[prID]) }]
+            products = [...products, { ...thisProduct, stock: Number(obj.session[prID]), paid: payment_status === 'paid' }]
         }
 
         if (!cartProducts[table]) {
@@ -122,9 +122,9 @@ export default function OrdersTable() {
 
     const calTax = (percent, price) => percent && percent !== 'null' ? (price * parseFloat(percent) / 100).toFixed(2) : 0.00;
 
-    const toPayment = async (oId, table_number, status) => {
+    const toPayment = async (oId, table_number, status, payment_status) => {
         table_number = table_number.indexOf(`"`) !== -1 ? JSON.parse(table_number) : table_number;
-        await addToPOS(oId, table_number, status);
+        await addToPOS(oId, table_number, status, payment_status);
         navigator(`/payment/${table_number}`)
     }
 
@@ -363,8 +363,8 @@ export default function OrdersTable() {
                         row.payment_status === 'pending' && row.items.length !== 0 ?
                             <button
                                 className="btn btn-sm btn-primary"
-                                onClick={() => toPayment(row.id, row.tables, row.status)}
-                                onPointerUp={() => toPayment(row.id, row.tables, row.status)}
+                                onClick={() => toPayment(row.id, row.tables, row.status, row.payment_status)}
+                                onPointerUp={() => toPayment(row.id, row.tables, row.status, row.payment_status)}
                             >
                                 Payment
                             </button> :
