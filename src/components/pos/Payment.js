@@ -120,10 +120,6 @@ export default function Payment()
         }
         setProcess(true);
 
-        if(false) {
-            return onlyPayment()
-        }
-
         let cashForDrawer = total.toFixed(2); // cash in drawer = total
         let reducible = parseFloat(byAll.Card)
 
@@ -419,8 +415,8 @@ export default function Payment()
                         </div>
                     </div>
                     <div className="row" ref={targetDiv} style={{justifyContent:'center'}}>
-                        {/* <Address /> */}
-                        <div className="receipt mt-3 exception" style={{ width:'90%' }} >
+                        <Address /> 
+                        <div className="receipt mt-3 exception" style={{ width:'100%' }} >
                             {
                                 cartProducts[table_number]?.map( (product,l) => <div key={l} className='row' style={{...chosenStyle, border:'none'}}>
                                     <div style={{ display:'flex',width:'100%',justifyContent:'space-between'}}>
