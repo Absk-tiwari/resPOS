@@ -109,8 +109,8 @@ function Table({ table, isDragging, loading }) {
             toast.success(data.message);
             // sending the print in kitchen
             window.electronAPI?.sendToKitchen({
-                products: cartProducts[table.table_number] ?? [],
-                table: table.table_number,
+                tableName: table.table_number,
+                products: (cartProducts[table.table_number] ?? []).map(p => ({name: p.name, stock: p.stock })),
                 taste: tableOrders[table.table_number].taste,
                 note: tableOrders[table.table_number].note,
                 printer: kitchenPrinter
