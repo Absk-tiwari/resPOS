@@ -1,0 +1,55 @@
+
+@import "icons/boxicons";
+@import "/node_modules/bootstrap/scss/functions";
+@import "/node_modules/bootstrap/scss/variables";
+@import "config/variables";
+@import "config/variables-dark";
+
+@import "config/variables-custom";
+@import "config/theme-mode";
+@import "/node_modules/bootstrap/scss/bootstrap";
+// Structure
+@import "structure/topbar";
+@import "structure/vertical";
+@import "structure/page-title";
+@import "structure/footer";
+// Bootstrap
+@import "components/accordion"; 
+@import "components/avatar";
+@import "components/backgrounds";
+@import "components/badge";
+@import "components/breadcrumb";
+@import "components/buttons";
+@import "components/card";
+@import "components/docs";
+@import "components/dropdown";
+@import "components/forms";
+@import "components/helper";
+@import "components/list-group";
+@import "components/modal";
+@import "components/nav";
+@import "components/pagination";
+@import "components/popover";
+@import "components/print";
+@import "components/progress";
+@import "components/reboot";
+@import "components/switch";
+@import "components/tables";
+@import "components/type";
+@import "components/tooltip";
+@import "components/widgets";
+
+// Plugin
+@import "plugins/simplebar"; 
+@import "plugins/choice";  
+@import "plugins/flatpicker"; 
+
+// App Page
+@import "pages/app-chat";
+@import "pages/app-email";
+@import "pages/app-ecommerce";
+
+// Pages
+@import "pages/icon-demo";
+@import "pages/authentication"; 
+@import "pages/timeline";
