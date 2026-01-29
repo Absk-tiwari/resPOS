@@ -9,7 +9,7 @@ import pos from './../../assets/images/asmara.jpeg';
 import { commonApiSlice, useGetOrdersQuery, useMakeOrderMutation, useZReportMutation } from "../../features/centerSlice";
 import { Card, CardBody, Form, Modal, ModalBody, ModalFooter, ModalHeader } from "reactstrap";
 import Transaction, { Address } from './Transaction';
-import { capitalFirst, getEuropeanDate, timeAgo, Warning, wrapText } from "../../helpers/utils";
+import { capitalFirst, timeAgo, Warning, wrapText } from "../../helpers/utils";
 import { printDivById } from '../../helpers/attachments';
 import { useNavigate } from "react-router-dom";
 import ExpandedTable from './Expandable';
@@ -81,7 +81,7 @@ export default function OrdersTable() {
 
     }
 
-    const generateReceipt = async (e) => {
+    const generateReport = async (e) => {
 
         e.preventDefault();
 
@@ -105,7 +105,7 @@ export default function OrdersTable() {
 
             } else {
 
-                if (window.confirm("This will reset all sessions for current cash registered!")) {
+                if (window.confirm("This will clear pending orders and tables for current session! Are you sure ?")) {
 
                     dispatch({ type: "LOADING" })
                     await zReport({
@@ -141,7 +141,7 @@ export default function OrdersTable() {
         try {
             e.preventDefault()
             if (window.electronAPI) {
-                window.electronAPI.printContent(modalBody.current.innerHTML);
+                window.electronAPI.printContent({html: modalBody.current.innerHTML});
             } else {
                 printDivById('receipt');
                 Warning("Printer not connected!");
@@ -224,6 +224,10 @@ export default function OrdersTable() {
     }
 
     useEffect(() => {
+
+        if(window.electronAPI) {
+            window.electronAPI.reloadWindow({ total:0, table: "" } );
+        }
         if (isSuccess) {
 
             setProductNames(data.products);
@@ -351,7 +355,7 @@ export default function OrdersTable() {
         },
         {
             name: "Time",
-            selector: row => timeAgo(row.created_at),
+            selector: row => timeAgo(row.updated_at),
             sortable: true,
             width: "200px"
         },
@@ -367,8 +371,7 @@ export default function OrdersTable() {
                                 onPointerUp={() => toPayment(row.id, row.tables, row.status, row.payment_status)}
                             >
                                 Payment
-                            </button> :
-                            (row.items.length !== 0 ? <button className="btn btn-sm btn-primary" onClick={print}> Print </button> : null)
+                            </button> : null
                     }
                     {(row.status === 'ongoing' && row.items.length !== 0) ? (<button className="btn btn-sm btn-warning"
                         onClick={() => makeOrder({ id: row.table_number, body: { order_id: row.id } })}>
@@ -420,9 +423,10 @@ export default function OrdersTable() {
                                     <img src={pos} alt={''} style={{ filter: "grayscale(1)" }} height={140} />
                                 </div>
                             </div>
-                            <div style={{ marginTop: 5 }} >
+                            <div style={{ marginTop: 5 }} ref={modalBody}>
                                 <Address />
-                                <div className='receipt' ref={modalBody} style={{ width: '100%', background: '#fff' }}>
+                                <div className='receipt' style={{ width: '100%', background: '#fff' }}>
+                                    <h3 style={{textAlign:'center'}}>Table: {order.tables}</h3>
                                     <Transaction
                                         isLoading={loading}
                                         orderProducts={orderProducts}
@@ -443,9 +447,9 @@ export default function OrdersTable() {
                     <button type='button' className='btn btn-primary btn-rounded' onClick={print}> Print </button>
                 </ModalFooter>
             </Modal>
-            {/*  X & Z report generating modal */}
-            <Modal isOpen={reportModal} >
-                <Form onSubmit={generateReceipt}>
+
+            <Modal isOpen={reportModal} size="md">
+                <Form onSubmit={generateReport}>
                     <ModalHeader>
                         <span className="report-type"> Generate-Report</span>
                     </ModalHeader>
@@ -487,8 +491,8 @@ export default function OrdersTable() {
                                                 <b> Select Type of Report </b>
                                             </h4>
                                         </div>
-                                        <button className={`btn btn-rounded col-5 ms-1 btn-success  ${reportType && reportType !== 'X' ? 'btn-inactive' : ''}`} type='button' onClick={() => setReportType('X')} style={{ border: '5px solid #afe9f5' }}> X-Report </button>
-                                        <button className={`btn btn-rounded col-5 offset-1 btn-danger ${reportType && reportType !== 'Z' ? 'btn-inactive' : ''}`} type='button' onClick={() => setReportType('Z')} style={{ border: '5px solid #afe9f5' }}> Z-Report </button>
+                                        <button className={`btn btn-rounded col-6 btn-success  ${reportType && reportType !== 'X' ? 'btn-inactive' : ''}`} type='button' onClick={() => setReportType('X')} style={{ border: '5px solid #afe9f5' }}> X-Report </button>
+                                        <button className={`btn btn-rounded col-6 btn-danger ${reportType && reportType !== 'Z' ? 'btn-inactive' : ''}`} type='button' onClick={() => setReportType('Z')} style={{ border: '5px solid #afe9f5' }}> Z-Report </button>
                                     </div>
                                 </div>
                             </CardBody>

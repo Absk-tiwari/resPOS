@@ -28,14 +28,14 @@ router.get('/items', fetchuser, async(req, res) => { // updated function
 
         if (req.body.category_id && req.body.category_id !== 'all') {
             products = await Item.query()
-            .where('pos', true).where('category_id', req.body.category_id).orderBy('stock', 'desc').select(cols).withGraphFetched().modifyGraph('category', (builder) => {
+            .where('pos', true).where('category_id', req.body.category_id).orderBy('seq').select(cols).withGraphFetched().modifyGraph('category', (builder) => {
                 builder.select(
                     'menu_categories.name as catName'
                 );
             });
         } else {
             products = await Item.query()
-            .where('pos', true).orderBy('stock', 'desc').select(cols).withGraphFetched('category').modifyGraph('category', (builder) => {
+            .where('pos', true).orderBy('seq').select(cols).withGraphFetched('category').modifyGraph('category', (builder) => {
                 builder.select(
                     'menu_categories.name as catName'
                 );

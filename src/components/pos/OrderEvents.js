@@ -16,9 +16,8 @@ export function useOrderEvents() {
         const channel = echo.channel("Order");
 
         channel.listen(".order.update", async event => {
-            console.log("By pusher: ", event);
             if(event.data?.order_id) {
-                await digSession({order: event.data.order_id}).unwrap();
+                await digSession({ order: event.data.order_id, print: event.data.print === true }).unwrap();
             }
             toast.success(event.message, { duration: 5000 });
             dispatch(commonApiSlice.util.invalidateTags(['Tables', 'Order']));

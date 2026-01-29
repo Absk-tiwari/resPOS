@@ -61,6 +61,7 @@ function Items({
                                     <img
                                         className={'title-img'}
                                         src={dealHost(product.thumb?? product.image?? labelImg)}
+                                        data-src={dealHost(product.thumb?? product.image?? labelImg)}
                                         onError={handleImgError}
                                         alt={product.name}
                                     />

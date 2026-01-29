@@ -11,26 +11,26 @@ const knex = Knex(mysqlConfig);
 
 Model.knex(knex);
 
-const server = express();
+const app = express();
 const port = 5101;
 
-server.use(cors());
-server.use(express.json());
-server.use('/images', express.static(path.join(__dirname, 'tmp')));
+app.use(cors());
+app.use(express.json());
+app.use('/images', express.static(path.join(__dirname, 'tmp')));
 
-server.get("/", (r, res) => res.send("Exit"));
+app.get("/", (r, res) => res.send("Exit"));
 
-server.use("/auth", require("./routes/auth"));
-server.use("/tables", require("./routes/tables"));
-server.use("/menu", require("./routes/menu"));
-server.use("/items", require("./routes/items"));
-server.use("/orders", require("./routes/orders"));
-server.use("/pos", require("./routes/pos"));
-server.use("/tax", require("./routes/tax"));
-server.use("/config", require("./routes/config"));
+app.use("/auth", require("./routes/auth"));
+app.use("/tables", require("./routes/tables"));
+app.use("/menu", require("./routes/menu"));
+app.use("/items", require("./routes/items"));
+app.use("/orders", require("./routes/orders"));
+app.use("/pos", require("./routes/pos"));
+app.use("/tax", require("./routes/tax"));
+app.use("/config", require("./routes/config"));
 
 
-server.get('/install-update', async(req, res)=> {
+app.get('/install-update', async(req, res)=> {
     try {
 
         const fs = require('fs');
@@ -64,10 +64,10 @@ server.get('/install-update', async(req, res)=> {
 })
 
 
-server.get('/check-connection', async(req,res) => {
+app.get('/check-connection', async(req,res) => {
     knex.raw('SELECT 1')
     .then(() => res.json({status:true, message: '✅ Database connected successfully!'}))
     .catch((err) => res.json({status:false, message: '❌ Database connection failed'}))
 })
 
-server.listen(port);
+app.listen(port);

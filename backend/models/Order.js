@@ -11,6 +11,11 @@ class Order extends Model {
     async $beforeInsert() {
         this.id = nanoid(12); // generate UUID
         this.created_at = new Date().toISOString();
+        this.updated_at = new Date().toISOString();
+    }
+
+    async $beforeUpdate() { 
+        this.updated_at = new Date().toISOString();
     }
   
     static get relationMappings() {

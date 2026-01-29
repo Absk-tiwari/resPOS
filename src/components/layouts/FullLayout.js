@@ -25,7 +25,7 @@ const FullLayout = () => {
         <div className={`${loading?'layout-item':"layout-item d-none"}`}> 
             <Loader type="spinner-default" bgColor={'gray'} color={'white'} size={70}/>
         </div>
-        { isLoggedIn && location.pathname !=='/disconnected' && <Navbar/> }
+        { isLoggedIn && location.pathname !=='/disconnected' && location.pathname !== '/customer' && <Navbar/> }
         <div className={`page-body-wrapper w-100 ${location.pathname==='/dashboard'? 'home':''}`} style={{
                 minHeight: location.pathname==='/login'? 0 :'90vh',
             }}>

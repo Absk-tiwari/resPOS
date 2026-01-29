@@ -33,6 +33,23 @@ export const defPosition = {
     y: window.screen.availHeight / 2
 }
 
+export const nonKitchenItems = [
+    'drink', 
+    'beverage', 
+    'juice',
+    'cocktail', 
+    'smoothie', 
+    'tea', 
+    'coffee', 
+    'milk', 
+    'soda', 
+    'water',
+    'soft drink', 
+    'wine', 
+    'beer', 
+    'alcohol'
+];
+
 function POS() {
 
     const [ activated, setCounter ] = useState(0);
@@ -60,7 +77,8 @@ function POS() {
         theme, 
         hasKeyboard, 
         tableOrders,
-        kitchenPrinter
+        kitchenPrinter,
+        paid: paidStat
     } = useSelector( s => s.auth );
 
     const [ makeOrder ] = useMakeOrderMutation(); 
@@ -108,12 +126,25 @@ function POS() {
                 payload : data.order
             });
             toast.success(data.message);
+            let toPrint = [];
+            if(data.only) {
+                // toast("printing to kitchen...");
+                (KartProducts[activeSession]??[]).forEach( item => {
+                    if(data.only[item.id]) {
+                        toPrint.push({
+                            name: item.name,
+                            stock: data.only[item.id]
+                        });
+                    }
+                });
+            }
             // send print to kitchen
+            if(toPrint.length === 0 ) return;
             window.electronAPI?.sendToKitchen({
                 tableName: activeSession,
                 taste: tableOrders[activeSession].taste??'',
                 note: tableOrders[activeSession].note??'',
-                products: (KartProducts[activeSession]??[]).map(p => ({name: p.name, stock: p.stock})),
+                products: toPrint,
                 printer: kitchenPrinter
             });
 
@@ -210,7 +241,7 @@ function POS() {
         setCartProducts(copy)
         dispatch({ type:"CHOOSEN_PRODUCT", payload: copy })
         if(window.electronAPI) {
-            window.electronAPI.reloadWindow({...copy, id: product.id})
+            window.electronAPI.reloadWindow({ total: f(getTotal(copy) - (paidStat[table] || 0)), table: activeSession } );
         }
     }
 
@@ -229,7 +260,7 @@ function POS() {
         setCartProducts(copy);
         dispatch({ type:"CHOOSEN_PRODUCT", payload: copy });
         if(window.electronAPI) {
-            window.electronAPI.reloadWindow({...copy, id: product.id});
+            window.electronAPI.reloadWindow({ total: f(getTotal(copy) - (paidStat[table] || 0)), table: activeSession });
         }
 
     }
@@ -360,7 +391,7 @@ function POS() {
         // new check added it should not be vegetable
         if( thisProduct && !split && !included.test(cat.trim()) ) {
 
-            let canAdd= thisProduct.quantity - availableStocks[prID];
+            let canAdd= thisProduct.quantity;
             canAdd = canAdd < 1 ? canAdd : 1;
             let updatedStock = (thisProduct.stock-0) + canAdd;
             let availableStock = product.quantity - updatedStock;
@@ -385,7 +416,7 @@ function POS() {
 
             setCartProducts(copyKartProducts);
             dispatch({ type: "CHOOSEN_PRODUCT", payload:copyKartProducts });
-            window.electronAPI?.reloadWindow({...copyKartProducts, id: thisProduct.id })
+            window.electronAPI?.reloadWindow({ total: f(getTotal(copyKartProducts) - (paidStat[table] || 0)), table: activeSession})
 
         } else {
 
@@ -414,23 +445,18 @@ function POS() {
 
             dispatch({ type: 'CHOOSEN_PRODUCT', payload: rest });
             // update the current project highlight
-            window.electronAPI?.reloadWindow({...rest, id: product.id })
+            window.electronAPI?.reloadWindow({ total: f(getTotal(rest) - (paidStat[table] || 0)), table: activeSession });
         }
         
         setTimeout(()=>setVegetable(null),100)
 
     }
 
-    const notOrdered = () => {
-        console.log(uid);
-        return !false;
-    }
-
     const resetCart = () => {
         let rest = {...KartProducts, [activeSession]: []};
         setCartProducts(rest);
         dispatch({ type: "CHOOSEN_PRODUCT", payload: rest });
-        window.electronAPI?.reloadWindow({ ...rest, id:0 });
+        window.electronAPI?.reloadWindow({ total: 0, table: activeSession });
     }
 
     // Reverse the stock decrement here
@@ -438,14 +464,14 @@ function POS() {
         let rest = {...KartProducts, [activeSession]: KartProducts[activeSession].filter((item, i)=> i!== index) };
         setCartProducts(rest);
         dispatch({ type: 'CHOOSEN_PRODUCT', payload: rest });
-        window.electronAPI?.reloadWindow({...rest, id:0 });
+        window.electronAPI?.reloadWindow({ total: f(getTotal(rest) - (paidStat[table] || 0)), table: activeSession });
     }
 
     const toggleModal = () => setModal(!otherOpen);
 
     const openTheFuckingDay = e => {
         e.preventDefault();
-        if(!enteredCash || enteredCash === '0') return Warning("You can't open without a single cash amount in drawer!");
+        if(!enteredCash || enteredCash === '0') return Warning("You should't open without a single cash amount in drawer!");
 
         dispatch({ type: "LOADING" });
         axios.post("pos/opening-day-cash-amount", {cash: enteredCash}).then(({data}) => {
@@ -576,7 +602,6 @@ function POS() {
         if(allProducts.isSuccess) {
 
             setNoProduct(allProducts.data.products?.length === 0 );
-            
             setProducts(chunk(allProducts.data.products, chunkSize))
             setInitialProducts(()=> allProducts.data.products);
             filterProducts(data?.categories[0]?.id)
@@ -592,6 +617,7 @@ function POS() {
 
     useEffect(()=> {
         setCartProducts(cartProducts);
+        window.electronAPI?.reloadWindow({ total: f(getTotal(cartProducts) - (paidStat[table] || 0)), table: activeSession });
         scrollToSection()
         return () => {
             setCartProducts([]);
@@ -635,12 +661,12 @@ function POS() {
           
             setCurrent(KartProducts[activeSession]?.length??0)
             product = {...product, stock: 1 };
-
-            setCartProducts({...KartProducts,[activeSession]: [...KartProducts[activeSession]??[], product] });
-            window.electronAPI?.reloadWindow({...KartProducts,[activeSession]: [...KartProducts[activeSession]??[], product], id: product.id });
+            let cartProducts = {...KartProducts,[activeSession]: [...KartProducts[activeSession]??[], product] }
+            setCartProducts(cartProducts);
+            window.electronAPI?.reloadWindow({ total: f(getTotal(cartProducts) - (paidStat[table] || 0)), table: activeSession });
             dispatch({ 
                 type: 'CHOOSEN_PRODUCT',
-                payload: {...KartProducts,[activeSession]: [...KartProducts[activeSession]??[], product] } 
+                payload: cartProducts
             });
             toast.success(data.message)
             setFocusedCustom('');
@@ -656,7 +682,7 @@ function POS() {
         setCustom({...custom, image: file})
     }
     
-    const { type, table , uid } = useParams();
+    const { type, table } = useParams();
     useEffect(() => {
 
         const handleDataReceived = (data) => {
@@ -682,29 +708,32 @@ function POS() {
         }
     },[ type ])
 
-    const showTotal = (tax=false) => {
-        
-        if(KartProducts && KartProducts[activeSession]?.length){
-            let additions = KartProducts[activeSession].filter( item => item.return === undefined )
-            let returns = KartProducts[activeSession].filter( _ => _.return === true )
-            let addTaxes = additions.reduce((a,c) => (a + (c.stock * c.taxAmount)), 0)
-            let remTaxes = returns.reduce((a,c) => (a + (c.stock * c.taxAmount)), 0)
+    const getTotal = payload => {
+        return (payload[activeSession]??[]).reduce((acc, cur)=> acc + (cur.stock * parseFloat(cur.price)),0);
+    }
+    
+    const showTotal = (tax=false, checkDrink=false, payload=[]) => {
+
+        if(checkDrink && KartProducts[activeSession]?.length) {
+            return KartProducts[activeSession]?.filter( item => nonKitchenItems.some(ite => item.catName?.toLowerCase().includes(ite))).reduce((acc, cur)=> acc + (cur.stock * parseFloat(cur.price)),0)
+        }
+        let toWorkOn = payload.length ? payload : KartProducts[activeSession];
+
+        if(toWorkOn && toWorkOn?.length){
+            let additions = toWorkOn.filter( item => item.return === undefined )
+            let addTaxes = additions.reduce((a,c) => (a + (c.stock * c.taxAmount)), 0);
             additions = additions.reduce((acc, cur)=> acc + (cur.stock * parseFloat(cur.price)),0)
-            returns = returns.reduce((acc, cur)=> acc + (cur.stock * parseFloat(cur.price)),0)
             if(tax) {
-                return f(addTaxes-remTaxes)
+                return f(addTaxes)
             }
-            return parseFloat(additions - returns).toFixed(2)
+            return f(additions);
 
         } else {
 
             if(cartProducts && cartProducts[activeSession]?.length)
             {
-                let additions = cartProducts[activeSession].filter( item => item.return === undefined )
-                let returns = cartProducts[activeSession].filter( _ => _.return === true )
-                additions = additions.reduce((acc, cur)=> acc + (cur.stock * parseFloat(cur.price)),0)
-                returns = returns.reduce((acc, cur)=> acc + (cur.stock * parseFloat(cur.price)),0)
-                return parseFloat(additions - returns).toFixed(2)
+                let additions = cartProducts[activeSession].reduce((acc, cur)=> acc + (cur.stock * parseFloat(cur.price)),0)
+                return parseFloat(additions).toFixed(2)
             }
         }
         return 0;
@@ -728,24 +757,20 @@ function POS() {
                     return newVal;
                 })
             }
+            let Kart = {...KartProducts,[activeSession]: KartProducts[activeSession].map((item, i)=> {
+                if(i === currentProduct ) {
+                    item = { ...item, price:newPriceAmount }
+                }
+                return item
+            })};
 
             dispatch({
                 type:"CHOOSEN_PRODUCT",
-                payload: {...KartProducts,[activeSession]: KartProducts[activeSession].map((item, i)=> {
-                    if(i === currentProduct ) {
-                        item = { ...item, price:newPriceAmount }
-                    }
-                    return item
-                })}
+                payload: Kart
             });
 
             if(window.electronAPI) {
-                window.electronAPI?.reloadWindow({ ...KartProducts,[activeSession]: KartProducts[activeSession].map((item, i)=> {
-                    if(i=== currentProduct ) {
-                        item = {...item, price: newPriceAmount }
-                    }
-                    return item
-                }), id: KartProducts[activeSession][currentProduct]?.id })
+                window.electronAPI?.reloadWindow({ total: f(getTotal(Kart) - (paidStat[table] || 0)), table: activeSession })
             }
             return
         }
@@ -771,23 +796,18 @@ function POS() {
                 }
                 setQty(newStockAmount);
             }
-
+            let Kart = {...KartProducts,[activeSession]: KartProducts[activeSession].map((item, i)=> {
+                    if(i=== currentProduct ) {
+                        item = {...item, stock:newStockAmount }
+                    }
+                    return item
+                })};
             dispatch({
                 type:"CHOOSEN_PRODUCT",
-                payload: {...KartProducts,[activeSession]: KartProducts[activeSession].map((item, i)=> {
-                    if(i=== currentProduct ) {
-                        item = {...item, stock:newStockAmount }
-                    }
-                    return item
-                })}
+                payload: Kart
             })
             if(window.electronAPI){ 
-                window.electronAPI?.reloadWindow({...KartProducts,[activeSession]: KartProducts[activeSession].map((item, i)=> {
-                    if(i=== currentProduct ) {
-                        item = {...item, stock:newStockAmount }
-                    }
-                    return item
-                }), id: KartProducts[activeSession][currentProduct]?.id })
+                window.electronAPI?.reloadWindow({ total: f(getTotal(Kart) - (paidStat[table] || 0)), table: activeSession })
             }
             
         }
@@ -815,12 +835,8 @@ function POS() {
         setScale(prev => Math.min(JSON.parse(prev) + 0.1, 2))
     }
 
-    const [ totalAmount , setTotal ] = useState(0.00);
     useEffect(() => {
         setCounter(() => Random(0,3))
-        if(typeof showTotal!== undefined) {
-            setTotal(showTotal())
-        }
     }, [])
     
 
@@ -984,6 +1000,7 @@ function POS() {
                         <div className="row">
                             <div className="col-sm-12 d-flex">
                                 <div className="col-sm-7 d-flex">
+                                    {f(showTotal(false,1)) !== f(showTotal()) ? (<>
                                     <button 
                                         type={'button'}
                                         className={"btn btn-light btn-rounded text-white "}
@@ -994,10 +1011,21 @@ function POS() {
                                         {order?.status === 'in-kitchen' && f(showTotal())===order?.total ? "In Kitchen": 'Order'}
                                     </button>
                                     {
-                                        order.payment !== 'paid' && 
+                                        paidStat[table] < showTotal() && 
                                         <button 
                                             type={'button'}
                                             className="btn btn-light btn-rounded text-white offset-1"
+                                            style={{backgroundColor:'#452077ff',width:'75%', zIndex:9999}}
+                                            onPointerUp={()=> navigator( activeSession && activeSession!== undefined ? ('/payment/'+ activeSession): '/payment/' )}
+                                        >
+                                            Payment
+                                        </button>
+                                    }
+                                    </>) : 
+                                        paidStat[table] < showTotal() && 
+                                        <button 
+                                            type={'button'}
+                                            className="btn btn-light btn-rounded text-white"
                                             style={{backgroundColor:'#452077ff',width:'75%', zIndex:9999}}
                                             onPointerUp={()=> navigator( activeSession && activeSession!== undefined ? ('/payment/'+ activeSession): '/payment/' )}
                                         >
@@ -1012,9 +1040,17 @@ function POS() {
                                 <div className="col-sm-5 d-flex justify-content-end align-items-center position-relative">
                                     <div className={'position-absolute'}>
                                         <p style={{lineHeight:2.1,whiteSpace:'nowrap'}}>
-                                            <b> Total: &nbsp;
+                                            <b> Pay: &nbsp;
                                                 <span className="total-amount" style={{left:0,fontSize:'2.3rem'}}>
-                                                    { (currency + showTotal()).replace(" ",'') }
+                                                    { (currency + f(showTotal() - (paidStat[table] || 0))).replace(" ",'') }
+                                                    {paidStat[table] ? (
+                                                        <>
+                                                            <small>&nbsp;paid:</small>
+                                                            <div style={{display:'inline'}}> 
+                                                                <b className='text-success fs-3'>{ f(paidStat[table])}</b>
+                                                            </div>
+                                                        </>
+                                                    ) : ""}
                                                 </span>
                                             </b>
                                         </p>

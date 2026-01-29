@@ -4,15 +4,12 @@ import { useMakePaymentMutation } from '../../features/centerSlice';
 // import pos from '../../asset/images/logo.png'
 import pos from '../../assets/images/asmara.jpeg'
 import { f, formatAmount, proper, returnPart, showQT, showTaxes, Warning } from '../../helpers/utils';
-import axios from 'axios';
 import toast, { LoaderIcon } from 'react-hot-toast';
 import { useNavigate, useParams } from 'react-router-dom';
-import { chosenStyle, labelStyle, paymentToastStyle } from '../../objects/styles';
+import { chosenStyle, labelStyle, paymentMethodStyle, paymentToastStyle } from '../../objects/styles';
 import { Address, TaxTable } from '../orders/Transaction';
 
-let RETURNS=0
-
-
+let RETURNS=0;
 
 export default function Payment() 
 {
@@ -25,7 +22,7 @@ export default function Payment()
     }
 
     const [ makePayment ] = useMakePaymentMutation();
-    const { currency, cartProducts, openingCash, categories, tableOrders } = useSelector(state => state.auth );
+    const { currency, cartProducts, openingCash, categories, tableOrders, paid:paidStat } = useSelector( state => state.auth );
     
     const [ number, setNumber ] = useState('');
     const [ processing, setProcess ] = useState(0)
@@ -52,7 +49,7 @@ export default function Payment()
             if( fillAmt <= total ){
                 setByAll(() => ({ ...byAll, [method]: fillAmt.toFixed(2) }));
             }
-            setPaid(() => (byAll.Cash+ byAll.Card + byAll.Account))
+            setPaid(() => (byAll.Cash+ byAll.Card + byAll.Account));
         }
         if( !paymentMethod.includes(method) ) {
             setPaymentMethod([ ...paymentMethod, method ]);
@@ -70,20 +67,15 @@ export default function Payment()
 
     const showTotal = () => {
         let additions=0;
-        let returns=0;
-        if(cartProducts[table_number]?.length || KartProducts[table_number]?.length) {
-            if(cartProducts[table_number]?.length) {
-                additions = cartProducts[table_number].filter( _ => _.return === undefined)
-                returns = cartProducts[table_number].filter( _ => _.return === true)
-            } else {
-                additions = KartProducts[table_number].filter( _ => _.return === undefined)
-                returns = KartProducts[table_number].filter( _ => _.return === true)
-            }
-            additions = additions.reduce((acc, cur)=> acc + (cur.stock * parseFloat(cur.price)),0)
-            returns = returns.reduce((acc, cur)=> acc + (cur.stock * parseFloat(cur.price)),0)
+        let already = 0;
+
+        if(paidStat && paidStat[table_number]) {
+            already = parseFloat(paidStat[table_number]);
         }
-        RETURNS = returns
-        return parseFloat(additions - returns)
+        if(cartProducts[table_number]?.length || KartProducts[table_number]?.length) {
+            additions = (cartProducts[table_number] ?? KartProducts[table_number]).reduce((acc, cur)=> acc + (cur.stock * parseFloat(cur.price)),0)
+        }
+        return parseFloat(additions - already.toFixed(2));
     }
 
     const total = showTotal();
@@ -99,10 +91,6 @@ export default function Payment()
             console.error("Error capturing image:", error);
         }
 
-    }
-
-    const onlyPayment = async () => {
-        const {data} = await axios.post(`orders/payment-update/`)
     }
     
     const initPayment = async () => {
@@ -197,11 +185,13 @@ export default function Payment()
                 duration:8000,
                 position:"top-right"
             });
-
-            // dispatch({
-            //     type:"UNSET_ORDER",
-            //     payload: table_number === 'undefined' ? "": table_number
-            // });
+            dispatch({
+                type: "PAID",
+                payload: {
+                    table: table_number,
+                    total: showTotal()
+                }
+            })
 
             navigate(`/floors`);
 
@@ -218,8 +208,6 @@ export default function Payment()
         setReceipt(mode);
     }
     
-    const [cashdraw, setCash] = useState(true);
-
     const paid = () => Object.values(byAll).reduce((p,c)=> p+parseFloat(c),0)
 
     return (
@@ -246,8 +234,8 @@ export default function Payment()
                         <div className="col-sm-12 d-flex">
                             <button 
                                 type="button" 
-                                className="btn bg-white text-dark w-100 mt-3 justify-content-center" 
-                                style={{width:'50%',alignContent:'center', color:'white', fontSize:'1.4rem', border:'1px solid'}} 
+                                className="btn bg-white col-6 mt-3 justify-content-center" 
+                                style={{alignContent:'center', fontSize:'1.4rem', border:'1px solid'}} 
                                 onClick={()=>toggleReceipt(!receiptOn)} 
                             >
                                 Receipt 
@@ -258,23 +246,19 @@ export default function Payment()
                                     onChange={()=>{}} 
                                 /> 
                             </button>
-                        </div>
-                        {false && <div className="col-sm-12 d-flex">
                             <button 
                                 type="button" 
-                                className="btn bg-white text-dark w-100 mt-3 justify-content-center" 
-                                style={{width:'50%', alignContent:'center', color:'white', fontSize:'1.4rem', border:'1px solid'}} 
-                                onClick={()=>setCash(!cashdraw)} 
+                                className="btn btn-primary col-5 offset-1 mt-3 justify-content-center" 
+                                style={{fontSize:'1.4rem'}} 
+                                onClick={()=>{
+                                    if(window.electronAPI) {
+                                        window.electronAPI.printContent({ html: targetDiv.current.innerHTML })
+                                    }
+                                }} 
                             > 
-                                Draw Cash
-                                <input
-                                    type='checkbox' 
-                                    checked={cashdraw} 
-                                    style={{marginLeft:25, height:20,width:25}} 
-                                    onChange={()=>{}} 
-                                /> 
+                                Print
                             </button>
-                        </div>}
+                        </div>
                     </div>}
                     { paymentMethod.length ? (<>
                         <div className="calculator">
@@ -343,15 +327,15 @@ export default function Payment()
                                                     total > 0 ? (<>
                                                         <div className="d-flex">
                                                             <i className={`fa-solid fa-cash`} />
-                                                            <p> Return </p>
+                                                            <h4> Return </h4>
                                                         </div>
-                                                        <b>&nbsp; {currency} {Math.abs((total - paid()).toFixed(2))}</b>
+                                                        <h4>&nbsp; {currency} {Math.abs((total - paid()).toFixed(2))}</h4>
                                                     </>) : (<>
                                                         <div className="d-flex">
                                                             <i className={`fa-solid fa-cash`} />
                                                             {
                                                                 total > 0 && paid() > total ? <b className={total}> Put back { total.toFixed(2) - paid() }</b>
-                                                                :(<><p> Return </p><b> &nbsp; {currency + Math.abs(total.toFixed(2) - paid())}</b></>)
+                                                                :(<><h4> Return &nbsp; {currency + Math.abs(total.toFixed(2) - paid())}</h4></>)
                                                             }
                                                         </div>
                                                     </>)
@@ -364,9 +348,9 @@ export default function Payment()
                                                 <div className="d-flex" style={{ justifyContent:'space-between' }}>
                                                     <div className="d-flex">
                                                         <i className={`fa-solid fa-cash`} />
-                                                        {total > 0 ? <p>Remaining </p>: <p>Put Back</p>}
+                                                        {total > 0 ? <h4>Remaining </h4>: <p>Put Back</p>}
                                                     </div>
-                                                    <b>&nbsp; {currency} {Math.abs((total - paid()).toFixed(2))}</b>
+                                                    <h4>&nbsp; {currency} {Math.abs((total - paid()).toFixed(2))}</h4>
                                                 </div>
                                             </div>
                                         </div>
@@ -376,11 +360,11 @@ export default function Payment()
                                             <div className={`card-body exception`} >
                                                 <div className="d-flex" style={{justifyContent:'space-between'}}>
                                                     <div className="d-flex"> 
-                                                        <p> { meth } </p>
+                                                        <h4 style={paymentMethodStyle}> { meth } </h4>
                                                     </div>
                                                     <div className="d-flex">
-                                                        &nbsp;{currency} &nbsp;<b className="price" > {byAll[meth]}</b>
-                                                        <i className="mdi mdi-close mx-3" style={{cursor:'pointer'}} onClick={()=>setPaymentMethod(()=>{ 
+                                                        &nbsp; &nbsp;<h4 className="price" style={paymentMethodStyle}>{currency} {byAll[meth]}</h4>
+                                                        <i className="bx bx-x mx-3 fs-2" style={{cursor:'pointer'}} onClick={()=>setPaymentMethod(()=>{ 
                                                             setByAll({...byAll, [meth]:0})
                                                             return paymentMethod.filter(ite => ite !== meth)
                                                         })} />
@@ -415,8 +399,11 @@ export default function Payment()
                         </div>
                     </div>
                     <div className="row" ref={targetDiv} style={{justifyContent:'center'}}>
-                        <Address /> 
-                        <div className="receipt mt-3 exception" style={{ width:'100%' }} >
+                        <div style={{width:'100%'}}>
+                            <Address /> 
+                        </div>
+                        <div className="receipt exception" style={{ width:'100%' }} >
+                            <h3 style={{textAlign:'center'}}>Table: {table_number}</h3>
                             {
                                 cartProducts[table_number]?.map( (product,l) => <div key={l} className='row' style={{...chosenStyle, border:'none'}}>
                                     <div style={{ display:'flex',width:'100%',justifyContent:'space-between'}}>

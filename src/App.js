@@ -11,6 +11,7 @@ import { useLocation, useNavigate, useRoutes } from "react-router-dom";
 import { useEffect } from "react";
 import { Warning } from "./helpers/utils.js";
 import { useOrderEvents } from "./components/pos/OrderEvents.js";
+import toast from "react-hot-toast";
 
 const token = localStorage.getItem('asmara-token');
 let headers;
@@ -63,6 +64,14 @@ function App() {
     useEffect(() => {
         const handleError = error => Warning(error);
         window.electronAPI?.hasError(handleError);
+        window.electronAPI?.onAvailable((_e, info) => {
+            toast.success(`Update ${info.version} is available! `);
+        });
+
+        window.electronAPI?.onProgress((_e, progress) => {
+            console.log('Downloading:', progress.percent);
+        });
+
     },[])
 
     

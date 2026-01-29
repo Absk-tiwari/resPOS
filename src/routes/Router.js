@@ -10,6 +10,7 @@ const Dashboard = lazy(() => import("../components/Dashboard.js"));
 const Disconnected = lazy(() => import("../components/Disconnected.js"));
 const Floors = lazy(() => import("../components/Floors.js"));
 const POS = lazy(() => import("../components/pos/POS.js"));
+const Customer = lazy(() => import("../components/pos/Customer.js"));
 const Payment = lazy(() => import("../components/pos/Payment.js"));
 const OrdersTable = lazy(() => import("../components/orders/OrdersTable.js"));
 
@@ -45,6 +46,12 @@ const ThemeRoutes = [
         path: "/POS/:table?/:uid?",
         element: (<ProtectedRoute>
           <POS/>
+        </ProtectedRoute>)
+      },
+      {
+        path: "/customer/",
+        element: (<ProtectedRoute>
+          <Customer/>
         </ProtectedRoute>)
       },
       {

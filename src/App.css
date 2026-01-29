@@ -325,6 +325,12 @@ div.parent {
     background: #2b547a;
     color: white
 }
+.selected-table {
+    border: 3px solid #ffffff!important;
+    background: #ffefab!important;
+    color: black!important;
+    box-shadow: 0 0 50px rgba(0, 0, 0, 0.4)!important;
+}
 .put-here {
     height: 78vh;
     background-color: white;

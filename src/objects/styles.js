@@ -104,3 +104,5 @@ export const paymentToastStyle = {
     boxShadow:'0px 18px 40px 0px lightyellow',
     right:10
 }
+
+export const paymentMethodStyle = {alignContent:'center',marginBottom:0}

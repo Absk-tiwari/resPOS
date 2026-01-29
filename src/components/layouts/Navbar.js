@@ -11,6 +11,7 @@ import profile from "../../assets/images/users/avatar.jpg";
 import { printDivById } from '../../helpers/attachments';
 import { Modal, ModalBody, ModalFooter, ModalHeader } from 'reactstrap';
 import Transaction, { Address } from '../orders/Transaction';
+import { useMergeTableMutation } from '../../features/centerSlice';
 
 const sessionCall = async () => {
 
@@ -23,8 +24,9 @@ const sessionCall = async () => {
 
 function Navbar() {
 
-    const { categories, hasKeyboard, loading, theme, myInfo, kitchenPrinter } = useSelector( state => state.auth );
+    const { categories, hasKeyboard, loading, theme, myInfo, kitchenPrinter, merging, combineTables } = useSelector( state => state.auth );
 
+    const [mergeTable] = useMergeTableMutation();
     const location = useLocation();
     const params = useParams();
     
@@ -39,6 +41,20 @@ function Navbar() {
             toast.success(data.message);
             setTimeout(() => window.location.reload(), 1000);
         }
+    }
+
+    const mergeTables = async () => {
+        if(merging){ 
+            // it was a confirm click
+            if(combineTables.length < 2) return Warning("Select at least two tables to merge!");
+            const data = await mergeTable({
+                tables: combineTables.join('+')
+            }).unwrap();
+            if(data.status) {
+                toast.success(data.message);
+            }
+        } 
+        dispatch({ type: "TOGGLE_MERGE", payload: !merging })
     }
 
     const freeTables = async () => {
@@ -233,7 +249,6 @@ function Navbar() {
         });
         if(window.electronAPI?.getPrinters){
             window.electronAPI.getPrinters().then((printers) => {
-                console.log("available printers", printers);
                 setAvailablePrinters(printers.map(p => ({name: p.name, default: p.isDefault})))
             });
         }
@@ -279,9 +294,22 @@ function Navbar() {
                                 <h4 className={`mb-0 btn btn-rounded btn-sm btn-primary fs-4`}>{params?.table ? `Table No. ${params.table}`:'Direct Sale' }</h4>
                             </div>
                         }
+                        { location.pathname.indexOf('/floors')===-1 ?
                         <button className="btn btn-secondary" type='button' onClick={()=>lastOrder()}>
                             Last Order
                         </button>
+                        : (<>
+                        <button className={`btn btn-${merging? 'success':'secondary'}`} type='button' 
+                        onClick={()=> mergeTables()}>
+                            {merging? (
+                                combineTables.length > 1 ? "Confirm Tables": "Combining..."
+                            ):"Merge Tables"}
+                        </button> 
+                        {merging? <button className='btn btn-danger' type='button' 
+                            onClick={()=> dispatch({ type: "TOGGLE_MERGE", payload: !merging })}>
+                            Cancel Merge
+                        </button> : null }
+                        </>)}
                         <button className="btn btn-secondary" type="button" onClick={()=> window.electronAPI?.drawCash()}>
                             Open drawer
                         </button>
@@ -300,7 +328,7 @@ function Navbar() {
 
                         <li className="nav-item d-flex">
                             <Link to={'#'} className='nav-link' onClick={toggleScreen}>
-                                <Icon icon={`mdi:${full? 'fullscreen-exit':"fullscreen"}`} style={{fontSize:'2rem'}}/>
+                                <Icon icon={`mdi:${full? 'fullscreen-exit':"fullscreen"}`} style={{fontSize:'2rem', color:theme === 'light' ? '' : '#7fa6b9'}}/>
                             </Link>
                         </li>
                         <li className="nav-item d-flex">
@@ -363,10 +391,10 @@ function Navbar() {
                                         <i className="dropdown-item-icon mdi mdi-update text-primary me-2" /> 
                                         Setup Kitchen Printer
                                     </Link>
-                                    <Link className="dropdown-item" to={"#"} onClick={checkforUpdates}>
+                                    {0 ? <Link className="dropdown-item" to={"#"} onClick={checkforUpdates}>
                                         <i className="dropdown-item-icon mdi mdi-update text-primary me-2" /> 
                                         Update
-                                    </Link>
+                                    </Link>: null}
                                     </>
                                 ) : null
                                 }
@@ -386,6 +414,11 @@ function Navbar() {
                                     Sign Out
                                 </Link>
                                 { window.electronAPI ?
+                                <>
+                                <Link className="dropdown-item" to={"#"} onClick={()=>window?.electronAPI.relaunch()}>
+                                    <i className='dropdown-item-icon mdi mdi-restart text-primary me-2'/>
+                                    Restart
+                                </Link>
                                 <Link className="dropdown-item" to={"#"} onClick={()=> {
                                     localStorage.removeItem("_last_location");
                                     window.electronAPI?.closeApp()
@@ -393,6 +426,7 @@ function Navbar() {
                                     <i className="dropdown-item-icon mdi mdi-close text-primary me-2"/> 
                                     Quit
                                 </Link>
+                                </>
                                 : null }
                             </div>
                         </li>
@@ -419,6 +453,7 @@ function Navbar() {
                                 <Address />
                             </div>
                             <div className="receipt" style={{width:'100%',background:'#fff'}}>
+                                <h3 style={{textAlign:'center'}}>Table: {order.tables}</h3>
                                 <Transaction 
                                     isLoading={loading}
                                     orderProducts={orderProducts} 

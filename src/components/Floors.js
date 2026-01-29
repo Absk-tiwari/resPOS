@@ -5,9 +5,11 @@ import {
     useDroppable,
     rectIntersection,
 } from "@dnd-kit/core";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
-import { useCancelOrderMutation, useFinishOrderMutation, useGetTablesQuery, useInitOrderMutation, useMakeOrderMutation, useMergeTableMutation, useSplitTableMutation, useUpdateTablePositionMutation } from "../features/centerSlice";
+import { useCancelOrderMutation, useDigSessionMutation, useFinishOrderMutation, useGetTablesQuery, useInitOrderMutation, useMakeOrderMutation, 
+    // useMergeTableMutation, 
+    useSplitTableMutation, useUpdateTablePositionMutation } from "../features/centerSlice";
 import { useSearch } from "../contexts/SearchContext";
 import { capitalFirst, Warning } from "../helpers/utils";
 import { tableStat } from "../objects/meta";
@@ -22,8 +24,9 @@ function Table({ table, isDragging, loading }) {
     const [finishOrder] = useFinishOrderMutation();
     const [cancelOrder] = useCancelOrderMutation();
     const [makeOrder] = useMakeOrderMutation();
+    const [digSession] = useDigSessionMutation();
 
-    const { cartProducts, tableOrders, theme, kitchenPrinter } = useSelector(s => s.auth);
+    const { cartProducts, tableOrders, theme, kitchenPrinter, merging, combineTables } = useSelector(s => s.auth);
     const { attributes, listeners, setNodeRef, transform } = useDraggable({
         id: table.id,
     });
@@ -42,7 +45,7 @@ function Table({ table, isDragging, loading }) {
         setInAction(table.table_number)
         if (stat !== 'free') toast("Order is ongoing!");
         if (!tableOrders.hasOwnProperty(tN)) {
-            initOrder(tN);
+            await initOrder(tN);
         }
         setActiveSession(tN);
         setInAction(() => null);
@@ -107,10 +110,21 @@ function Table({ table, isDragging, loading }) {
 
         if (data.status) {
             toast.success(data.message);
+            let toPrint = [];
+            if(data.only) {
+                (cartProducts[table.table_number]??[]).forEach( item => {
+                    if(data.only[item.id]) {
+                        toPrint.push({
+                            name: item.name,
+                            stock: data.only[item.id]
+                        });
+                    }
+                });
+            }
             // sending the print in kitchen
             window.electronAPI?.sendToKitchen({
                 tableName: table.table_number,
-                products: (cartProducts[table.table_number] ?? []).map(p => ({name: p.name, stock: p.stock })),
+                products: toPrint,
                 taste: tableOrders[table.table_number].taste,
                 note: tableOrders[table.table_number].note,
                 printer: kitchenPrinter
@@ -120,7 +134,6 @@ function Table({ table, isDragging, loading }) {
         }
         setInAction(() => null); 
     }
-
     const freeTheTable = async () => {
         setInAction(table.table_number)
         const data = await finishOrder({
@@ -157,12 +170,28 @@ function Table({ table, isDragging, loading }) {
 
     };
 
-    const handlePointerUp = (e) => {
+    const handlePointerUp = async(e) => {
 
         if (!movedRef.current) {
 
             const elem = e.target;
             if (!elem) return;
+            
+            if(merging) {
+                if(table.status!== 'free') return Warning("Only free tables can be merged!");
+                return dispatch({type:"MERGE_TABLES", payload: table.table_number});
+            }
+            console.log(cartProducts[table.table_number]??[]);
+            if(table.status !== 'free' && (cartProducts[table.table_number]??[]).length === 0) {
+                setInAction(table.table_number);
+                if(tableOrders[table.table_number]?.id) {
+                    await digSession({
+                        order: tableOrders[table.table_number].id,
+                        print: false
+                    }).unwrap();
+                }
+            }
+
 
             const { type, call } = e.target.dataset;
 
@@ -179,16 +208,19 @@ function Table({ table, isDragging, loading }) {
                 if (call === 'send-to-kitchen') {
                     return sendToKitchen();
                 }
+                if(call==='merge' && merging) {
+                    return
+                }
                 return
             }
             if (!type) {
-                console.log(table)
                 return openPOS(table.status, table.table_number);
             }
             if (type === 'split') {
                 return splitTheTable(table.table_number);
             }
-            // openPOS(table.status, table.table_number);
+            console.log('going to init...', table.status, table.table_number)
+            openPOS(table.status, table.table_number);
 
         } else {
             isDragging(true);
@@ -211,8 +243,7 @@ function Table({ table, isDragging, loading }) {
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}
             onContextMenu={options}
-            // data-status={table.status}
-            className="d-block text-center"
+            className={`d-block text-center ${combineTables.indexOf(table.table_number)!== -1 ? `selected-table`:''}`}
         >
             <div className="d-block" style={{ zIndex: 9999 }} data-type="pos" onClick={(e) => {
                 e.stopPropagation();
@@ -220,7 +251,7 @@ function Table({ table, isDragging, loading }) {
             }}>
                 <div> {table.label} </div>
                 <span
-                    className={`text-white btn-${table.className} mt-1 d-block`}
+                    className={`${combineTables.indexOf(table.table_number) === -1 ? 'text-white':''} btn-${table.className} mt-1 d-block`}
                 >
                     {capitalFirst(table.status)}
                 </span>
@@ -238,18 +269,21 @@ function Table({ table, isDragging, loading }) {
                             {<div className="dropdown-menu dropdown-menu-dark" aria-labelledby={`dropdown-${table.table_number}`}>
 
                                 {['in-kitchen', 'served'].includes(tableOrders[table.table_number].status) && tableOrders[table.table_number].payment !== 'paid' ?
-                                    <span className="dropdown-item" data-call="payment" data-type="actions" > Go to Payment </span>
+                                    <>
+                                        <span className="dropdown-item" data-call={merging? "merge":"payment"} data-type="actions" > Go to Payment </span>
+                                        <span data-type="actions" data-call={"cancel"} className="dropdown-item">Cancel Order</span>
+                                    </>
                                     : null}
                                 {['ongoing'].includes(tableOrders[table.table_number].status) && Object.keys(tableOrders[table.table_number].data).length ?
-                                    <span className="dropdown-item" data-call="send-to-kitchen" data-type="actions">Send to kitchen</span>
+                                    <span className="dropdown-item" data-call={merging? "merge":"send-to-kitchen"} data-type="actions">Send to kitchen</span>
                                     : null
                                 }
                                 {Object.keys(tableOrders[table.table_number].data).length && tableOrders[table.table_number].payment === 'paid' && tableOrders[table.table_number].status !== 'completed' ?
-                                    <span className="dropdown-item" data-type="actions" data-call="free" >Finish Order </span>
+                                    <span className="dropdown-item" data-type="actions" data-call={merging? "merge":"free"} >Finish Order </span>
                                     : null}
                                 {
                                     table.status === 'order ongoing' ?
-                                        <span data-type="actions" data-call="cancel" className="dropdown-item">Cancel Order</span> : null
+                                    <span data-type="actions" data-call={merging? "merge":"cancel"} className="dropdown-item">Cancel Order</span> : null
                                 }
 
                             </div>}
@@ -300,7 +334,7 @@ export default function TableFloorPlan() {
     const [tables, setTables] = useState([]);
     const [updateTablePosition] = useUpdateTablePositionMutation();
     const { data, isSuccess } = useGetTablesQuery();// !token
-    const [mergeTable] = useMergeTableMutation();
+    // const [mergeTable] = useMergeTableMutation();
     const [isDragging, setIsDragging] = useState(false);
 
     const [loading, setLoading] = useState(false);
@@ -335,37 +369,13 @@ export default function TableFloorPlan() {
         const target = tables.find(t => t.id === over.id);
 
         if (dragged.status !== 'free' || target.status !== 'free') {
-            Warning("Only FREE tables can be merged!");
-            return;
+            return Warning("Only FREE tables can be merged!");
         }
 
-        await updateTablePosition({
-            id: dragged.id,
-            body: { x: target.x, y: target.y }
-        }).unwrap();
-
-        const mergedTable = {
-            id: dragged.id,
-            x: target.x,
-            y: target.y,
-            width: dragged.width + target.width - 50,
-            height: dragged.height + target.height - 90,
-            color: "rgb(142, 172, 86)",
-            label: `${dragged.label}+${target.table_number}`,
-            table_number: dragged.table_number + "+" + target.table_number,
-            status: "free",
-            merged: true
-        };
-        
-        setLoading(()=> dragged.table_number);
-        await mergeTable({
-            t1: dragged.table_number,
-            t2: target.table_number,
-            mergedTable,
-            draggedId: dragged.id,
-            targetId: target.id
-        });
-        setLoading(()=> false);
+        // await updateTablePosition({
+        //     id: dragged.id,
+        //     body: { x: target.x, y: target.y }
+        // }).unwrap();
 
     };
     
@@ -408,6 +418,9 @@ export default function TableFloorPlan() {
             document.body?.classList.add('no-overflow');
             setTables(() => modified);
 
+        }
+        if(window.electronAPI) {
+            window.electronAPI.reloadWindow({ total:0, table: "" } );
         }
 
         return () => {

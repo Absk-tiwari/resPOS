@@ -9,10 +9,13 @@ const reservations = JSON.parse(localStorage.getItem('asmara_reservations')?? '{
 
 const initialState = {
 
+    paid: JSON.parse(localStorage.getItem('_asmara_paid_status')??'{}'),
     theme: localStorage.getItem('_asmara_theme')??'default',
     kitchenPrinter: localStorage.getItem('__asmara_kitchen_printer')??'',
     reservations,
     tableOrders,
+    merging: false,
+    combineTables: [],
     internet:true,
     loading:false,
     update:false,
@@ -226,10 +229,48 @@ const authReducer = (state=initialState,action) => {
         }
 
         case "TABLE_ORDERS_BULK" : {
+            let paidStat = {...state.paid};
+            const cState = {...state.cartProducts};
+            let keep = {};
+            
+            Object.keys(action.payload).forEach(table => {
+                keep[table] = paidStat[table]??0;
+            });
+            let removals = [];
+            Object.keys(cState).forEach( table => {
+                if(Object.keys(action.payload).indexOf(table)===-1){
+                    removals.push(table);
+                }
+            });
+            removals.forEach( rem => {
+                delete cState[rem];
+            });
+            localStorage.setItem('cartProducts', JSON.stringify(cState));
+            
+            localStorage.setItem('_asmara_paid_status', JSON.stringify(keep));
             localStorage.setItem('tableOrders', JSON.stringify(action.payload));
             return {
                 ...state,
-                tableOrders: action.payload
+                tableOrders: action.payload,
+                paid: keep
+            }
+        }
+
+        case "TOGGLE_MERGE": {
+            return {
+                ...state,
+                merging: action.payload,
+                combineTables: action.payload=== false ? []: state.combineTables
+            }
+        }
+
+        case "MERGE_TABLES": {
+
+            return {
+                ...state,
+                combineTables: state.combineTables.indexOf(action.payload) === -1 ? 
+                    [...state.combineTables, action.payload] : 
+                    state.combineTables.filter( t => t !== action.payload)
             }
         }
 
@@ -285,6 +326,17 @@ const authReducer = (state=initialState,action) => {
             
         }
 
+        case "PAID" : {
+            const {payload} = action;
+            const paidStat = {...state.paid};
+            paidStat[payload.table] = payload.total;
+            localStorage.setItem('_asmara_paid_status', JSON.stringify(paidStat));
+
+            return {
+                ...state,
+                paid: paidStat
+            }
+        }
     }
 }
 

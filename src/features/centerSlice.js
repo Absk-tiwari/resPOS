@@ -75,10 +75,14 @@ export const commonApiSlice = createApi({
 			async onQueryStarted(_, { dispatch, queryFulfilled }) {
 				try {
 					const { data } = await queryFulfilled;
-					dispatch({
-						type: "ORDERS_AND_TABLE",
-						payload: data.order
-					});
+					if(data.status) {
+						dispatch({
+							type: "ORDERS_AND_TABLE",
+							payload: data.order
+						});
+					} else {
+						Warning(data.message)
+					}
 
 				} catch (error) {
 					let msg = error.error?.data
@@ -107,7 +111,7 @@ export const commonApiSlice = createApi({
 
 						localStorage.setItem('cartSessions', '[1]');
 						dispatch({ type: "RESET_KART" });
-						dispatch({ type: "DAY_CLOSE" })
+						dispatch({ type: "DAY_CLOSE" });
 						toast.success(data.message)
 
 					} else {
@@ -197,30 +201,30 @@ export const commonApiSlice = createApi({
 			}
 		}),
 		mergeTable: builder.mutation({
-			query: ({ t1, t2 }) => ({
-				url: `/orders/link/${t1}/${t2}`,
+			query: ({ tables }) => ({
+				url: `/orders/link/${tables}`,
 			}),
 
-			async onQueryStarted({ mergedTable, draggedId, targetId }, { dispatch, queryFulfilled }) {
+			// async onQueryStarted({ mergedTable, draggedId, targetId }, { dispatch, queryFulfilled }) {
 
-				const patch = dispatch(
-					commonApiSlice.util.updateQueryData('getTables', undefined, (draft) => {
-						// remove both tables
-						draft.tables = draft.tables.filter(
-							t => t.id !== draggedId && t.id !== targetId
-						);
-						console.log(mergedTable, draggedId, targetId)
-						// add merged table
-						draft.tables.push(mergedTable);
-					})
-				);
+			// 	const patch = dispatch(
+			// 		commonApiSlice.util.updateQueryData('getTables', undefined, (draft) => {
+			// 			// remove both tables
+			// 			draft.tables = draft.tables.filter(
+			// 				t => t.id !== draggedId && t.id !== targetId
+			// 			);
+			// 			console.log(mergedTable, draggedId, targetId)
+			// 			// add merged table
+			// 			draft.tables.push(mergedTable);
+			// 		})
+			// 	);
 
-				try {
-					await queryFulfilled;
-				} catch {
-					patch.undo(); // rollback on failure
-				}
-			},
+			// 	try {
+			// 		await queryFulfilled;
+			// 	} catch {
+			// 		patch.undo(); // rollback on failure
+			// 	}
+			// },
 
 			invalidatesTags: ['Tables'], // optional but recommended
 		}),
@@ -258,7 +262,7 @@ export const commonApiSlice = createApi({
 			}
 		}),
 		digSession: builder.mutation({
-			query: ({ order }) => `orders/info/${order}`,
+			query: ({ order, print=null }) => `orders/info/${order}/${print}`,
 			invalidatesTags: ['Tables', 'Order'],
 			async onQueryStarted(_, { dispatch, queryFulfilled }) {
 				try {
@@ -278,14 +282,16 @@ export const commonApiSlice = createApi({
 								payload: data.order.tables
 							});
 						}
-						
-						window.electronAPI?.sendToKitchen({ 
-							tableName: data.table,
-							taste: data.order.taste,
-							note: data.order.note,
-							products: data.products,
-							printer: localStorage.getItem('__asmara_kitchen_printer')
-						});
+						if(data.print.length) {
+							if(data.products.length === 0 ) return;
+							window.electronAPI?.sendToKitchen({ 
+								tableName: data.table,
+								taste: data.order.taste,
+								note: data.order.note,
+								products: data.print,
+								printer: localStorage.getItem('__asmara_kitchen_printer')
+							});
+						}
 
 					}
 				} catch (error) { toast.error("something went wrong while bringing session data!") }
