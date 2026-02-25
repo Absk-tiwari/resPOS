@@ -63,3 +63,4 @@ export const numPad = [
     "7 8 9", 
     "0 . {bksp}",
 ]
+export const numFields = ['cash', 'quantity', 'price', 'pos_price', 'web_price', 'stock', 'vStock', 'vPrice']

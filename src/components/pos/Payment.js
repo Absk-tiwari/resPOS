@@ -125,20 +125,17 @@ export default function Payment()
 
         const sessionData = cartProducts[table_number].reduce(
             (acc, { stock, id, price,  ...rest }) => {
-                if( acc.products.indexOf(id) ===-1 ) { // quick hi ayega udhr se hmesa so its all done here
-                    acc.products.push(id)
-                }
+                acc.taste[id] = acc.taste[id] || (rest.taste??"");
                 acc.quantity[id] = ((acc.quantity[id] || 0) - 0) + (stock-0);// Increment quantity
                 acc.total = f(total); // Accumulate total price
                 acc.price[id] = (acc.quantity[id] || 0) * f(price)
                 acc.r = returnHTML;
                 return acc;
             },
-            { products: [], total: 0, quantity: {}, price:{}, r:'' }
+            { taste: {}, total: 0, quantity: {}, price:{}, r:'' }
         );
 
         const order_id = tableOrders[table_number!=='undefined' ? table_number: ""].id;
-
         const data = await makePayment({
             tables: table_number,
             customer_id:'',
@@ -220,10 +217,10 @@ export default function Payment()
                                 <div className={`card ms-2 bg-secondary payment-${met.toLowerCase()} ${currentMethod===met && 'active'}`} style={mode} onClick={()=> choosePaymentMethod(met)}>
                                     <div className="card-body">
                                         <div className="d-flex text-white" style={{alignItems:'center',gap:'5px'}}>
-                                            { _ === 0 && <i className="bx bx-cash" aria-hidden={true} />}
-                                            { _ === 1 && <i className="bx bx-credit-card" aria-hidden={true} />}
-                                            { _ === 2 && <i className="bx bx-user" aria-hidden={true} />} 
-                                            <strong> <p className="m-0 text-white"> {met} </p>  </strong>
+                                            { _ === 0 && <i className="fa fa-cash" aria-hidden={true} />}
+                                            { _ === 1 && <i className="fs-2 bx bx-credit-card" aria-hidden={true} />}
+                                            { _ === 2 && <i className="fs-2 bx bx-user" aria-hidden={true} />} 
+                                            <strong> <p className="m-0 fs-3 text-white"> {met} </p>  </strong>
                                         </div>
                                     </div>
                                 </div>

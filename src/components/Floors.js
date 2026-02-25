@@ -7,14 +7,17 @@ import {
 } from "@dnd-kit/core";
 import { useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
-import { useCancelOrderMutation, useDigSessionMutation, useFinishOrderMutation, useGetTablesQuery, useInitOrderMutation, useMakeOrderMutation, 
+import {
+    useCancelOrderMutation, useDigSessionMutation, useFinishOrderMutation, useGetTablesQuery, useInitOrderMutation, useMakeOrderMutation,
     // useMergeTableMutation, 
-    useSplitTableMutation, useUpdateTablePositionMutation } from "../features/centerSlice";
+    useSplitTableMutation, useUpdateTablePositionMutation
+} from "../features/centerSlice";
 import { useSearch } from "../contexts/SearchContext";
 import { capitalFirst, Warning } from "../helpers/utils";
 import { tableStat } from "../objects/meta";
 import { badgeStyle, floorTile, tableContainer, tableDivStyle } from "../objects/styles";
 import toast, { LoaderIcon } from "react-hot-toast";
+import { getSessionData } from "./pos/POS";
 
 function Table({ table, isDragging, loading }) {
 
@@ -96,24 +99,28 @@ function Table({ table, isDragging, loading }) {
                 payload: table.table_number
             });
         }
-        setInAction(() => null); 
+        setInAction(() => null);
     }
 
     const sendToKitchen = async () => {
-        setInAction(table.table_number)
+        setInAction(table.table_number);
+        const total = cartProducts[table.table_number].reduce((acc, cur) => acc + (cur.stock * parseFloat(cur.price)), 0)
+        const sessionData = getSessionData(cartProducts[table.table_number], total);
+        return console.log(total, sessionData);
         const { data } = await makeOrder({
             id: table.table_number,
             body: {
-                order_id: tableOrders[table.table_number].id
+                order_id: tableOrders[table.table_number].id,
+                data:sessionData,
             }
         });
 
         if (data.status) {
             toast.success(data.message);
             let toPrint = [];
-            if(data.only) {
-                (cartProducts[table.table_number]??[]).forEach( item => {
-                    if(data.only[item.id]) {
+            if (data.only) {
+                (cartProducts[table.table_number] ?? []).forEach(item => {
+                    if (data.only[item.id]) {
                         toPrint.push({
                             name: item.name,
                             stock: data.only[item.id]
@@ -132,7 +139,7 @@ function Table({ table, isDragging, loading }) {
         } else {
             toast.error(data.message)
         }
-        setInAction(() => null); 
+        setInAction(() => null);
     }
     const freeTheTable = async () => {
         setInAction(table.table_number)
@@ -147,7 +154,7 @@ function Table({ table, isDragging, loading }) {
                 payload: table.table_number
             });
         }
-        setInAction(() => null); 
+        setInAction(() => null);
     }
 
     const handlePointerDown = (e) => {
@@ -170,21 +177,21 @@ function Table({ table, isDragging, loading }) {
 
     };
 
-    const handlePointerUp = async(e) => {
+    const handlePointerUp = async (e) => {
 
         if (!movedRef.current) {
 
             const elem = e.target;
             if (!elem) return;
-            
-            if(merging) {
-                if(table.status!== 'free') return Warning("Only free tables can be merged!");
-                return dispatch({type:"MERGE_TABLES", payload: table.table_number});
+
+            if (merging) {
+                if (table.status !== 'free') return Warning("Only free tables can be merged!");
+                return dispatch({ type: "MERGE_TABLES", payload: table.table_number });
             }
-            console.log(cartProducts[table.table_number]??[]);
-            if(table.status !== 'free' && (cartProducts[table.table_number]??[]).length === 0) {
+            console.log(cartProducts[table.table_number] ?? []);
+            if (table.status !== 'free' && (cartProducts[table.table_number] ?? []).length === 0) {
                 setInAction(table.table_number);
-                if(tableOrders[table.table_number]?.id) {
+                if (tableOrders[table.table_number]?.id) {
                     await digSession({
                         order: tableOrders[table.table_number].id,
                         print: false
@@ -208,7 +215,7 @@ function Table({ table, isDragging, loading }) {
                 if (call === 'send-to-kitchen') {
                     return sendToKitchen();
                 }
-                if(call==='merge' && merging) {
+                if (call === 'merge' && merging) {
                     return
                 }
                 return
@@ -243,7 +250,7 @@ function Table({ table, isDragging, loading }) {
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}
             onContextMenu={options}
-            className={`d-block text-center ${combineTables.indexOf(table.table_number)!== -1 ? `selected-table`:''}`}
+            className={`d-block text-center ${combineTables.indexOf(table.table_number) !== -1 ? `selected-table` : ''}`}
         >
             <div className="d-block" style={{ zIndex: 9999 }} data-type="pos" onClick={(e) => {
                 e.stopPropagation();
@@ -251,7 +258,7 @@ function Table({ table, isDragging, loading }) {
             }}>
                 <div> {table.label} </div>
                 <span
-                    className={`${combineTables.indexOf(table.table_number) === -1 ? 'text-white':''} btn-${table.className} mt-1 d-block`}
+                    className={`${combineTables.indexOf(table.table_number) === -1 ? 'text-white' : ''} btn-${table.className} mt-1 d-block`}
                 >
                     {capitalFirst(table.status)}
                 </span>
@@ -266,25 +273,30 @@ function Table({ table, isDragging, loading }) {
                             >
                                 More...
                             </button>
-                            {<div className="dropdown-menu dropdown-menu-dark" aria-labelledby={`dropdown-${table.table_number}`}>
-
-                                {['in-kitchen', 'served'].includes(tableOrders[table.table_number].status) && tableOrders[table.table_number].payment !== 'paid' ?
-                                    <>
-                                        <span className="dropdown-item" data-call={merging? "merge":"payment"} data-type="actions" > Go to Payment </span>
-                                        <span data-type="actions" data-call={"cancel"} className="dropdown-item">Cancel Order</span>
-                                    </>
-                                    : null}
-                                {['ongoing'].includes(tableOrders[table.table_number].status) && Object.keys(tableOrders[table.table_number].data).length ?
-                                    <span className="dropdown-item" data-call={merging? "merge":"send-to-kitchen"} data-type="actions">Send to kitchen</span>
-                                    : null
-                                }
-                                {Object.keys(tableOrders[table.table_number].data).length && tableOrders[table.table_number].payment === 'paid' && tableOrders[table.table_number].status !== 'completed' ?
-                                    <span className="dropdown-item" data-type="actions" data-call={merging? "merge":"free"} >Finish Order </span>
-                                    : null}
-                                {
-                                    table.status === 'order ongoing' ?
-                                    <span data-type="actions" data-call={merging? "merge":"cancel"} className="dropdown-item">Cancel Order</span> : null
-                                }
+                            {<div className="dropdown-menu fpop dropdown-menu-dark" aria-labelledby={`dropdown-${table.table_number}`}>
+                                <div className="fphdr">
+                                    <div className="fptitle" id="fpTitle">T-{table.table_number}</div>
+                                    <button className="fpx" onClick={() => {}}>✕</button>
+                                </div>
+                                <div className="fpbtns">
+                                    {['in-kitchen', 'served'].includes(tableOrders[table.table_number].status) && tableOrders[table.table_number].payment !== 'paid' ?
+                                        <>
+                                            <span className="dropdown-item fpbtn bill" data-call={merging ? "merge" : "payment"} data-type="actions" > Go to Payment </span>
+                                            <span data-type="actions" data-call={"cancel"} className="cancel fpbtn dropdown-item">✕ Cancel Order</span>
+                                        </>
+                                        : null}
+                                    {['ongoing'].includes(tableOrders[table.table_number].status) && Object.keys(tableOrders[table.table_number].data).length ?
+                                        <span className="dropdown-item fpbtn bill" data-call={merging ? "merge" : "send-to-kitchen"} data-type="actions">Send to kitchen</span>
+                                        : null
+                                    }
+                                    {Object.keys(tableOrders[table.table_number].data).length && tableOrders[table.table_number].payment === 'paid' && tableOrders[table.table_number].status !== 'completed' ?
+                                        <span className="dropdown-item fpbtn order" data-type="actions" data-call={merging ? "merge" : "free"} >Finish Order </span>
+                                        : null}
+                                    {
+                                        table.status === 'order ongoing' ?
+                                            <span data-type="actions" data-call={merging ? "merge" : "cancel"} className="dropdown-item fpbtn cancel">✕ Cancel Order</span> : null
+                                    }
+                                </div>
 
                             </div>}
                         </div>
@@ -378,7 +390,7 @@ export default function TableFloorPlan() {
         // }).unwrap();
 
     };
-    
+
     useEffect(() => {
 
         if (isSuccess) {
@@ -419,8 +431,8 @@ export default function TableFloorPlan() {
             setTables(() => modified);
 
         }
-        if(window.electronAPI) {
-            window.electronAPI.reloadWindow({ total:0, table: "" } );
+        if (window.electronAPI) {
+            window.electronAPI.reloadWindow({ total: 0, table: "" });
         }
 
         return () => {

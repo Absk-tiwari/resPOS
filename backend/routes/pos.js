@@ -21,9 +21,9 @@ router.get('/items', fetchuser, async(req, res) => { // updated function
             'category_id',
             'tax',
             'image',
-            'stock',
+            'stock as quantity',
             'thumb',
-            'seq'
+            'seq',
         ];
 
         if (req.body.category_id && req.body.category_id !== 'all') {
@@ -46,6 +46,7 @@ router.get('/items', fetchuser, async(req, res) => { // updated function
             status:true, 
             products: products.map(({ category, ...rest }) => ({ 
                 ...rest, 
+                stock: 1,
                 image: rest.thumb ? rest.thumb: rest.image,
                 catName: category ? category.catName : null, 
                 taxAmount: rest.tax && rest.tax!=='null'? (rest.price.replace(/\s+/g, '')?.replace(",",'.') * parseFloat(rest.tax) / 100).toFixed(2) : 0.00 
@@ -104,9 +105,10 @@ router.post('/create-customer', fetchuser, async (req, res )=> {
     try 
     {
         await Customer.query().insertAndFetch({
-            name: req.body.name,
+            name: req.body.first_name+" "+req.body.last_name,
             email: req.body.email,
-            phone: req.body.phone
+            phone: req.body.phone,
+            note: req.body.note
         });
         const customers = await Customer.query().orderBy('id','desc').select(['id','name','email','phone']);
 

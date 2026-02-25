@@ -58,10 +58,17 @@ export default function OrdersTable() {
         if (!obj) return;
 
         if (['completed'].indexOf(status) !== -1) return;
-
+        // return console.log(orders);
         for (const prID in obj.session) {
+            const order = orders.find(o => o.id === orderID);
             let thisProduct = cachedProducts.find(p => p.id === Number(prID))
-            products = [...products, { ...thisProduct, stock: Number(obj.session[prID]), paid: payment_status === 'paid' }]
+            products = [...products, { 
+                ...thisProduct, 
+                stock: Number(obj.session[prID]), 
+                paid: payment_status === 'paid',
+                taste: order.taste ?? '-',
+                note: order.note?? '-'
+            }];
         }
 
         if (!cartProducts[table]) {
@@ -245,10 +252,13 @@ export default function OrdersTable() {
                     for (const prod in session.quantity) {
                         if (!Object.hasOwn(session.quantity, prod)) continue;
                         orderData.push({
+                            id: prod,
                             sq: cachedProducts?.find(p => Number(p.id) === Number(prod))?.seq ?? "",
                             name: pNames[prod],
                             quantity: session.quantity[prod],
                             price: session.price[prod],
+                            taste: session.taste ? session.taste[prod] : '-',
+                            note: session.note ? session.note[prod] : '-'
                         });
                     }
                     dispatchable.push({ id: order.id, session: session.quantity });

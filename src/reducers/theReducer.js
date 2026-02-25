@@ -232,7 +232,6 @@ const authReducer = (state=initialState,action) => {
             let paidStat = {...state.paid};
             const cState = {...state.cartProducts};
             let keep = {};
-            
             Object.keys(action.payload).forEach(table => {
                 keep[table] = paidStat[table]??0;
             });
@@ -243,10 +242,9 @@ const authReducer = (state=initialState,action) => {
                 }
             });
             removals.forEach( rem => {
-                delete cState[rem];
+                delete cState[rem]; // remove the cart details of order which isn't ongoing
             });
             localStorage.setItem('cartProducts', JSON.stringify(cState));
-            
             localStorage.setItem('_asmara_paid_status', JSON.stringify(keep));
             localStorage.setItem('tableOrders', JSON.stringify(action.payload));
             return {

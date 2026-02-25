@@ -48,7 +48,7 @@ async function generatePdf(data){
     </head>
     <body style="width:32vw!important;margin:0px!important;padding:0px!important;">
 
-        <div style="background:white;width:50vw!important;padding-bottom:40px;border-radius:15px;border:2px dashed gray;">
+        <div style="background:white;padding-bottom:40px;border-radius:15px;border:2px dashed gray;">
 
             <div class="head" >
                 <img src="data:image/png;base64,${data.b64}" alt="Logo" style="height:80px;object-fit:contain"/>

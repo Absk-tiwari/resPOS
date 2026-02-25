@@ -1,12 +1,12 @@
 export const tableStat = {
-    free: "#8eac56",
-    occupied: "#ff6a6ae8",
-    reserved: "#ffb65f",
-    'order ongoing': "#f9b931"
+  free: "#8eac56",
+  occupied: "#ff6a6ae8",
+  reserved: "#ffb65f",
+  'order ongoing': "#f9b931"
 }
 
-export const loaderStyle = {width:20,height:20}
-export const centerBtn = {display:'flex',placeContent:'center'}
+export const loaderStyle = { width: 20, height: 20 }
+export const centerBtn = { display: 'flex', placeContent: 'center' }
 
 export const dataTableStyle = {
   rows: {
@@ -35,7 +35,7 @@ export const tableStyle = {
   alignItems: "center",
   justifyContent: "center",
   fontWeight: "bold",
-  cursor:"pointer",
+  cursor: "pointer",
   color: "#fff",
   position: "absolute"
 }
@@ -47,3 +47,28 @@ export const goToPOS = {
   border: "none",
   cursor: "pointer",
 }
+
+export const nonKitchenItems = [
+  'drink',
+  'beverage',
+  'juice',
+  'cocktail',
+  'smoothie',
+  'tea',
+  'coffee',
+  'milk',
+  'soda',
+  'water',
+  'soft drink',
+  'wine',
+  'beer',
+  'alcohol',
+  'desserts', 
+];
+
+export const tastes = [
+  { label: "Mild", emoji: "😌", sub: "No heat" },
+  { label: "Medium", emoji: "🌶️", sub: "Some kick" },
+  { label: "Hot", emoji: "🌶️🌶️", sub: "Spicy" },
+  { label: "Berbere", emoji: "🔥", sub: "Very hot" },
+]

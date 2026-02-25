@@ -106,3 +106,5 @@ export const paymentToastStyle = {
 }
 
 export const paymentMethodStyle = {alignContent:'center',marginBottom:0}
+
+export const btnStyle = {minHeight:60, fontSize:'1rem'}

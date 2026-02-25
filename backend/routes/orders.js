@@ -425,13 +425,20 @@ router.get(`/info/:order/:print?`, async(req,res) => {
                 builder.select(
                     'menu_categories.name as catName'
                 );
-            }).whereIn('id', data?.products??[]);
+            }).whereIn('id', Object.keys(data.quantity??[]));
         const pairs = [];
         
         products.forEach( pr => {
             pr.taxAmount = pr.tax && pr.tax!=='null'? (pr.price.replace(/\s+/g, '')?.replace(",",'.') * parseFloat(pr.tax) / 100).toFixed(2) : 0.00;
             pr.stock = data.quantity[pr.id];
+            pr.note = data.note?.[pr.id] ?? "-";
+            pr.taste = data.taste?.[pr.id] ?? "-";
             let catName = (pr.category?.catName??'').toLowerCase();
+            const isdrink = nonKitchenItems.some(ite => catName.includes(ite));
+            if(catName && !isdrink) {
+                pr.note =null;
+                pr.taste =null;
+            }
             if(in_kitchen && in_kitchen[pr.id]) { 
                 if(in_kitchen[pr.id] === data.quantity[pr.id]) {
                     pairs.push(pr);
@@ -439,13 +446,13 @@ router.get(`/info/:order/:print?`, async(req,res) => {
                 } else {
                     pr.stock = in_kitchen[pr.id];
                     pairs.push(pr);
-                    if(catName && !nonKitchenItems.some(ite => catName.includes(ite)) ) {
+                    if(catName && !isdrink) {
                         toPrint.push(pr);
                     };
                 }
             } else {
                 pairs.push(pr);
-                if(catName && !nonKitchenItems.some(ite => catName.includes(ite)) ) {
+                if(catName && !isdrink) {
                     toPrint.push(pr);
                 };
             }
@@ -722,13 +729,13 @@ async function generateReport(payload) {
     let view = await generatePdf(data); // Pass data to a template renderer
     const options = { format: 'A4' };
 
-    if (Rtype === 'X') {
+    if (Rtype === 'Z') {
 
-        // await Order.query().where('cash_register_id', lastRegisterID ).where('data', null).orWhere('payment_status', 'pending').delete();
-        // await Table.query().patch({
-        //     status:'free',
-        //     linked_to:null
-        // });
+        await Order.query().where('cash_register_id', lastRegisterID ).where('data', null).orWhere('payment_status', 'pending').delete();
+        await Table.query().patch({
+            status:'free',
+            linked_to:null
+        });
 
         let path = `reports/${format(new Date(), 'dd_MM_yyyy')}_Z_report.pdf`;
         if(payload.today) { // more likely the current session
@@ -740,13 +747,13 @@ async function generateReport(payload) {
                     await storage.put(path, fileBuffer);
                 }
             });
-            // await Report.query().insert({
-            //     path,
-            //     date: europeanDate(),
-            //     user_id: payload.myID,
-            //     cash_register_id: lastRegisterID?? 0,
-            //     html: view
-            // });
+            await Report.query().insert({
+                path,
+                date: europeanDate(),
+                user_id: payload.myID,
+                cash_register_id: lastRegisterID?? 0,
+                html: view
+            });
 
         }
         

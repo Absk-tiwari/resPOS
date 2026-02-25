@@ -30,6 +30,8 @@ export default function ExpandedTable({ data, onExpand }) {
                     <th style={cell}>Item</th>
                     <th style={cell}>Qty</th>
                     <th style={cell}>Price</th>
+                    <th style={cell}>Spice Level</th>
+                    <th style={cell}>Note</th>
                     <th style={cell}>Subtotal</th>
                     </tr>
                 </thead>
@@ -39,6 +41,8 @@ export default function ExpandedTable({ data, onExpand }) {
                         <td style={cell}>{item.sq+ ". "+item.name}</td>
                         <td style={cell}>{item.quantity}</td>
                         <td style={cell}>€{(item.price / item.quantity).toFixed(2)}</td>
+                        <td style={cell}>{item.taste}</td>
+                        <td style={cell}>{item.note}</td>
                         <td style={cell}>€{item.price}</td>
                     </tr>
                     ))}
